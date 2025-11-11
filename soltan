@@ -1,0 +1,168 @@
+CREATE DATABASE school;
+
+USE school;
+
+CREATE TABLE users (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  username VARCHAR(50) UNIQUE,
+  password VARCHAR(255)
+);
+
+CREATE TABLE employees (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  name VARCHAR(100),
+  phone VARCHAR(20),
+  national_id VARCHAR(20)
+);
+<?php
+session_start();
+include 'db.php';
+
+if ($_SERVER["REQUEST_METHOD"] == "POST") {
+  $username = $_POST['username'];
+  $password = $_POST['password'];
+
+  $result = mysqli_query($conn, "SELECT * FROM users WHERE username='$username'");
+  $user = mysqli_fetch_assoc($result);
+
+  if ($user && password_verify($password, $user['password'])) {
+    $_SESSION['user'] = $username;
+    header("Location: dashboard.php");
+  } else {
+    echo "بيانات الدخول غير صحيحة.";
+  }
+}
+?>
+
+<form method="POST">
+  <input type="text" name="username" placeholder="اسم المستخدم" required><br>
+  <input type="password" name="password" placeholder="كلمة المرور" required><br>
+  <button type="submit">تسجيل الدخول</button>
+</form>
+<?php
+session_start();
+if (!isset($_SESSION['user'])) {
+  header("Location: login.php");
+  exit;
+}
+include 'db.php';
+?>
+
+<h2>مرحبًا، <?php echo $_SESSION['user']; ?></h2>
+
+<form action="add.php" method="POST">
+  <input type="text" name="name" placeholder="الاسم الكامل" required><br>
+  <input type="text" name="phone" placeholder="رقم الجوال" required><br>
+  <input type="text" name="national_id" placeholder="رقم الهوية" required><br>
+  <button type="submit">إضافة الموظف</button>
+</form>
+
+<table border="1">
+  <tr><th>الاسم</th><th>الجوال</th><th>الهوية</th><th>تعديل</th><th>حذف</th></tr>
+  <?php
+    $result = mysqli_query($conn, "SELECT * FROM employees");
+    while ($row = mysqli_fetch_assoc($result)) {
+      echo "<tr>
+              <td>{$row['name']}</td>
+              <td>{$row['phone']}</td>
+              <td>{$row['national_id']}</td>
+              <td><a href='edit.php?id={$row['id']}'>✏️</a></td>
+              <td><a href='delete.php?id={$row['id']}'>🗑️</a></td>
+            </tr>";
+    }
+  ?>
+</table>
+<?php
+include 'db.php';
+$name = $_POST['name'];
+$phone = $_POST['phone'];
+$national_id = $_POST['national_id'];
+
+mysqli_query($conn, "INSERT INTO employees (name, phone, national_id) VALUES ('$name', '$phone', '$national_id')");
+header("Location: dashboard.php");
+?>
+<?php
+include 'db.php';
+$id = $_GET['id'];
+
+if ($_SERVER["REQUEST_METHOD"] == "POST") {
+  $name = $_POST['name'];
+  $phone = $_POST['phone'];
+  $national_id = $_POST['national_id'];
+  mysqli_query($conn, "UPDATE employees SET name='$name', phone='$phone', national_id='$national_id' WHERE id=$id");
+  header("Location: dashboard.php");
+}
+
+$result = mysqli_query($conn, "SELECT * FROM employees WHERE id=$id");
+$row = mysqli_fetch_assoc($result);
+?>
+
+<form method="POST">
+  <input type="text" name="name" value="<?php echo $row['name']; ?>" required><br>
+  <input type="text" name="phone" value="<?php echo $row['phone']; ?>" required><br>
+  <input type="text" name="national_id" value="<?php echo $row['national_id']; ?>" required><br>
+  <button type="submit">تحديث</button>
+</form>
+<?php
+include 'db.php';
+$id = $_GET['id'];
+mysqli_query($conn, "DELETE FROM employees WHERE id=$id");
+header("Location: dashboard.php");
+?>
+<?php
+$conn = mysqli_connect("localhost", "root", "", "school");
+if (!$conn) {
+  die("فشل الاتصال: " . mysqli_connect_error());
+}
+?>
+<?php
+include 'db.php';
+
+if ($_SERVER["REQUEST_METHOD"] == "POST") {
+  $username = $_POST['username'];
+  $password = password_hash($_POST['password'], PASSWORD_DEFAULT);
+
+  $check = mysqli_query($conn, "SELECT * FROM users WHERE username='$username'");
+  if (mysqli_num_rows($check) > 0) {
+    echo "اسم المستخدم موجود مسبقًا.";
+  } else {
+    mysqli_query($conn, "INSERT INTO users (username, password) VALUES ('$username', '$password')");
+    echo "تم إنشاء الحساب بنجاح. <a href='login.php'>تسجيل الدخول</a>";
+  }
+}
+?>
+
+<form method="POST">
+  <input type="text" name="username" placeholder="اسم المستخدم" required><br>
+  <input type="password" name="password" placeholder="كلمة المرور" required><br>
+  <button type="submit">تسجيل</button>
+</form>
+<?php
+include 'db.php';
+
+header("Content-Type: application/vnd.ms-excel");
+header("Content-Disposition: attachment; filename=employees.xls");
+
+echo "الاسم\tرقم الجوال\tرقم الهوية\n";
+
+$result = mysqli_query($conn, "SELECT * FROM employees");
+while ($row = mysqli_fetch_assoc($result)) {
+  echo "{$row['name']}\t{$row['phone']}\t{$row['national_id']}\n";
+}
+?>
+<a href="export.php"><button>📄 تصدير إلى Excel</button></a>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.rtl.min.css" rel="stylesheet">
+<div class="container mt-4">
+  <form class="card p-4 shadow" method="POST" action="add.php">
+    <div class="mb-3">
+      <input type="text" name="name" class="form-control" placeholder="الاسم الكامل" required>
+    </div>
+    <div class="mb-3">
+      <input type="text" name="phone" class="form-control" placeholder="رقم الجوال" required>
+    </div>
+    <div class="mb-3">
+      <input type="text" name="national_id" class="form-control" placeholder="رقم الهوية" required>
+    </div>
+    <button type="submit" class="btn btn-primary">إضافة الموظف</button>
+  </form>
+</div>
